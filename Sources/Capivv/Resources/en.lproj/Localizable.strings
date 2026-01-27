@@ -1,0 +1,73 @@
+/* Capivv iOS SDK - Localization Strings */
+
+/* Common */
+"capivv.common.continue" = "Continue";
+"capivv.common.cancel" = "Cancel";
+"capivv.common.close" = "Close";
+"capivv.common.done" = "Done";
+"capivv.common.loading" = "Loading...";
+"capivv.common.processing" = "Processing...";
+"capivv.common.error" = "Error";
+"capivv.common.success" = "Success";
+"capivv.common.tryAgain" = "Try Again";
+
+/* Paywall */
+"capivv.paywall.restore" = "Restore Purchases";
+"capivv.paywall.restoring" = "Restoring...";
+"capivv.paywall.purchasing" = "Purchasing...";
+"capivv.paywall.startTrial" = "Start %d-day free trial";
+"capivv.paywall.then" = "Then %@";
+"capivv.paywall.perMonth" = "/month";
+"capivv.paywall.perYear" = "/year";
+"capivv.paywall.perWeek" = "/week";
+"capivv.paywall.bestValue" = "Best Value";
+"capivv.paywall.mostPopular" = "Most Popular";
+"capivv.paywall.save" = "Save %@%%";
+"capivv.paywall.freeTrialIncluded" = "Free trial included";
+"capivv.paywall.termsAndPrivacy" = "Terms of Service & Privacy Policy";
+"capivv.paywall.legalDisclaimer" = "Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless it is canceled at least 24 hours before the end of the current period.";
+
+/* Error Messages */
+"capivv.error.unableToLoad" = "Unable to Load";
+"capivv.error.purchaseFailed" = "Purchase Failed";
+"capivv.error.restoreFailed" = "Restore Failed";
+"capivv.error.networkError" = "Network Error";
+"capivv.error.somethingWentWrong" = "Something went wrong";
+"capivv.error.dismiss" = "Dismiss";
+
+/* Cancellation Flow */
+"capivv.cancellation.title" = "Before you go...";
+"capivv.cancellation.whyLeaving" = "Why are you thinking of leaving?";
+"capivv.cancellation.weHearYou" = "We hear you";
+"capivv.cancellation.specialOffer" = "Here's a special offer for you";
+"capivv.cancellation.acceptOffer" = "Accept Offer";
+"capivv.cancellation.noThanks" = "No thanks";
+"capivv.cancellation.confirmCancel" = "Confirm Cancellation";
+"capivv.cancellation.keepSubscription" = "Keep My Subscription";
+
+/* Cancellation Reasons */
+"capivv.cancellation.reason.tooExpensive" = "Too expensive";
+"capivv.cancellation.reason.notUsing" = "Not using enough";
+"capivv.cancellation.reason.missingFeatures" = "Missing features";
+"capivv.cancellation.reason.switchingToCompetitor" = "Switching to competitor";
+"capivv.cancellation.reason.technicalIssues" = "Technical issues";
+"capivv.cancellation.reason.other" = "Other";
+
+/* Promotions */
+"capivv.promotion.limitedTime" = "Limited Time Offer";
+"capivv.promotion.expiresIn" = "Expires in %@";
+"capivv.promotion.claim" = "Claim Offer";
+"capivv.promotion.codeEntry" = "Enter promo code";
+"capivv.promotion.apply" = "Apply";
+"capivv.promotion.invalidCode" = "Invalid promo code";
+"capivv.promotion.codeApplied" = "Promo code applied!";
+
+/* Time Periods */
+"capivv.time.day" = "day";
+"capivv.time.days" = "days";
+"capivv.time.week" = "week";
+"capivv.time.weeks" = "weeks";
+"capivv.time.month" = "month";
+"capivv.time.months" = "months";
+"capivv.time.year" = "year";
+"capivv.time.years" = "years";
