@@ -4,6 +4,7 @@ import SwiftUI
 
 /// Factory that creates SwiftUI views from template component definitions.
 /// This enables dynamic rendering of paywall templates without hardcoded layouts.
+@MainActor
 public struct ComponentFactory {
     private let theme: ThemeProvider
     private let viewModel: PaywallViewModel
@@ -344,6 +345,7 @@ private struct PriceSelectorComponentView: View {
 
 // MARK: - CTA Button Component
 
+@MainActor
 private struct CTAButtonComponentView: View {
     let props: ComponentProps
     let theme: ThemeProvider
@@ -377,6 +379,7 @@ private struct CTAButtonComponentView: View {
 
 // MARK: - Restore Button Component
 
+@MainActor
 private struct RestoreButtonComponentView: View {
     let props: ComponentProps
     let theme: ThemeProvider
