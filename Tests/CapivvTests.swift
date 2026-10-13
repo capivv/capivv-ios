@@ -39,7 +39,7 @@ final class CapivvTests: XCTestCase {
         let config = CapivvConfiguration(apiKey: "minimal_key")
 
         XCTAssertEqual(config.apiKey, "minimal_key")
-        XCTAssertEqual(config.baseURL.absoluteString, "https://api.capivv.com/v1")
+        XCTAssertEqual(config.baseURL.absoluteString, "https://app.capivv.com/v1")
         XCTAssertEqual(config.timeoutInterval, 30)
         XCTAssertFalse(config.debugLoggingEnabled)
     }

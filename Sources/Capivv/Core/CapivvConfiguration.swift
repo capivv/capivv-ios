@@ -15,7 +15,7 @@ public struct CapivvConfiguration: Sendable {
     public let debugLoggingEnabled: Bool
 
     /// Default production API base URL
-    public static let defaultBaseURL = URL(string: "https://api.capivv.com/v1")!
+    public static let defaultBaseURL = URL(string: "https://app.capivv.com/v1")!
 
     public init(
         apiKey: String,

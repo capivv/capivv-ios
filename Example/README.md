@@ -41,7 +41,7 @@ In `CapivvDemoApp.swift`, replace the API key with your own:
 ```swift
 Capivv.shared.configure(
     apiKey: "YOUR_API_KEY",
-    baseURL: URL(string: "https://api.capivv.com/v1")!
+    baseURL: URL(string: "https://app.capivv.com/v1")!
 )
 ```
 

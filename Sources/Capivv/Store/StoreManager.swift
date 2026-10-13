@@ -31,11 +31,15 @@ actor StoreManager {
         switch result {
         case .verified(let transaction):
             Logger.info("Transaction update received: \(transaction.productID)")
-            await processTransaction(transaction)
-            await transaction.finish()
+            // Only finish once Capivv has recorded it. An unfinished transaction
+            // is redelivered by StoreKit on the next launch, which is our retry.
+            if await submit(result) == nil {
+                await transaction.finish()
+            }
         case .unverified(let transaction, let error):
             Logger.error("Unverified transaction: \(error.localizedDescription)")
-            // Still finish to prevent it from being delivered again
+            // StoreKit couldn't verify it, so Capivv's server-side check would
+            // reject it too. Finish to prevent endless redelivery.
             await transaction.finish()
         }
     }
@@ -84,11 +88,12 @@ actor StoreManager {
                 case .verified(let transaction):
                     Logger.info("Purchase successful: \(transaction.productID)")
 
-                    // Validate receipt with backend
-                    await processTransaction(transaction)
-
-                    // Finish the transaction
-                    await transaction.finish()
+                    // The user has been charged, so this is a success either way.
+                    // If Capivv didn't record it, leave the transaction unfinished
+                    // so StoreKit redelivers it via Transaction.updates.
+                    if await submit(verification) == nil {
+                        await transaction.finish()
+                    }
 
                     return .success(transaction: transaction)
 
@@ -125,70 +130,78 @@ actor StoreManager {
         // Sync with App Store
         try await AppStore.sync()
 
-        // Process all current entitlements
-        for await result in Transaction.currentEntitlements {
-            switch result {
-            case .verified(let transaction):
-                await processTransaction(transaction)
-            case .unverified(_, let error):
-                Logger.error("Unverified entitlement: \(error)")
-            }
+        let failures = await syncCurrentEntitlements()
+        if !failures.isEmpty {
+            throw CapivvError.receiptValidationFailed(reason: failures.joined(separator: "; "))
         }
 
         Logger.info("Purchases restored")
     }
 
-    // MARK: - Receipt Processing
-
-    private func processTransaction(_ transaction: Transaction) async {
-        Logger.debug("Processing transaction: \(transaction.productID)")
-
-        // Get the user ID from Capivv
-        guard let userId = await Capivv.shared.userId else {
-            Logger.warning("No user logged in, skipping receipt validation")
-            return
-        }
-
-        // Get app receipt data
-        guard let receiptData = await getReceiptData() else {
-            Logger.error("Could not get receipt data")
-            return
-        }
-
-        do {
-            let result = try await api.validateReceipt(
-                userId: userId,
-                receiptData: receiptData,
-                productId: transaction.productID,
-                transactionId: String(transaction.id),
-                originalTransactionId: String(transaction.originalID)
-            )
-
-            if result.success {
-                Logger.info("Receipt validated successfully")
-                // Refresh entitlements to get updated status
-                try? await Capivv.shared.refreshEntitlements()
-            } else {
-                Logger.error("Receipt validation failed")
+    /// Send every current entitlement to Capivv. Unlike `restorePurchases`,
+    /// this never calls `AppStore.sync()`, so it doesn't prompt for an Apple ID
+    /// and is safe to run on login to backfill existing subscribers.
+    /// - Returns: A description of each transaction that failed to sync.
+    @discardableResult
+    func syncCurrentEntitlements() async -> [String] {
+        var failures: [String] = []
+        for await result in Transaction.currentEntitlements {
+            switch result {
+            case .verified(let transaction):
+                if let error = await submit(result) {
+                    failures.append("\(transaction.productID): \(error)")
+                }
+            case .unverified(let transaction, let error):
+                Logger.error("Unverified entitlement: \(error)")
+                failures.append("\(transaction.productID): unverified (\(error.localizedDescription))")
             }
-        } catch {
-            Logger.error("Receipt validation error: \(error)")
         }
+        return failures
     }
 
-    private func getReceiptData() async -> String? {
-        // For StoreKit 2, we use the App Store receipt
-        guard let appStoreReceiptURL = Bundle.main.appStoreReceiptURL,
-              FileManager.default.fileExists(atPath: appStoreReceiptURL.path) else {
-            return nil
+    // MARK: - Transaction Submission
+
+    /// Submit a verified transaction's JWS to Capivv.
+    /// - Returns: `nil` on success, otherwise a description of the failure,
+    ///   which is also logged and published on `Capivv.lastPurchaseSyncError`.
+    private func submit(_ result: VerificationResult<Transaction>) async -> String? {
+        guard case .verified(let transaction) = result else {
+            return "transaction is unverified"
+        }
+        Logger.debug("Submitting transaction: \(transaction.productID)")
+
+        guard let userId = await Capivv.shared.userId else {
+            let message = "No user logged in; transaction \(transaction.id) not sent to Capivv"
+            Logger.warning(message)
+            await Capivv.shared.recordPurchaseSync(error: message)
+            return message
         }
 
         do {
-            let receiptData = try Data(contentsOf: appStoreReceiptURL)
-            return receiptData.base64EncodedString()
-        } catch {
-            Logger.error("Failed to read receipt: \(error)")
+            let response = try await api.submitTransaction(
+                userId: userId,
+                signedTransaction: result.jwsRepresentation,
+                productId: transaction.productID,
+                transactionId: String(transaction.id),
+                bundleId: Bundle.main.bundleIdentifier
+            )
+
+            guard response.success else {
+                let message = response.message ?? "Capivv rejected transaction \(transaction.id)"
+                Logger.error("Transaction sync failed: \(message)")
+                await Capivv.shared.recordPurchaseSync(error: message)
+                return message
+            }
+
+            Logger.info("Transaction \(transaction.id) recorded by Capivv")
+            await Capivv.shared.recordPurchaseSync(error: nil)
+            try? await Capivv.shared.refreshEntitlements()
             return nil
+        } catch {
+            let message = "\(error)"
+            Logger.error("Transaction sync failed: \(message)")
+            await Capivv.shared.recordPurchaseSync(error: message)
+            return message
         }
     }
 }

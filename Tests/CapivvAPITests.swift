@@ -204,7 +204,7 @@ final class CapivvAPITests: XCTestCase {
     func testReceiptValidationResponseParsing() throws {
         let json = """
         {
-            "success": true,
+            "status": "success",
             "purchase_id": "purchase_123",
             "entitlements": [
                 {
@@ -214,6 +214,7 @@ final class CapivvAPITests: XCTestCase {
                     "source": "purchase"
                 }
             ],
+            "expires_at": "2025-01-01T00:00:00Z",
             "message": "Receipt validated successfully"
         }
         """
@@ -223,7 +224,8 @@ final class CapivvAPITests: XCTestCase {
 
         let response = try decoder.decode(ReceiptValidationResponse.self, from: json.data(using: .utf8)!)
 
-        XCTAssertTrue(response.success)
+        XCTAssertEqual(response.status, "success")
+        XCTAssertNotNil(response.expiresAt)
         XCTAssertEqual(response.purchaseId, "purchase_123")
         XCTAssertEqual(response.entitlements?.count, 1)
         XCTAssertEqual(response.message, "Receipt validated successfully")
@@ -232,7 +234,7 @@ final class CapivvAPITests: XCTestCase {
     func testReceiptValidationFailureResponse() throws {
         let json = """
         {
-            "success": false,
+            "status": "invalid",
             "purchase_id": null,
             "entitlements": null,
             "message": "Invalid receipt"
@@ -242,7 +244,7 @@ final class CapivvAPITests: XCTestCase {
         let decoder = JSONDecoder()
         let response = try decoder.decode(ReceiptValidationResponse.self, from: json.data(using: .utf8)!)
 
-        XCTAssertFalse(response.success)
+        XCTAssertFalse(ReceiptValidationResult(from: response).success)
         XCTAssertNil(response.purchaseId)
         XCTAssertNil(response.entitlements)
         XCTAssertEqual(response.message, "Invalid receipt")
@@ -333,7 +335,7 @@ final class CapivvAPITests: XCTestCase {
     func testReceiptValidationResultFromResponse() throws {
         let json = """
         {
-            "success": true,
+            "status": "success",
             "purchase_id": "purchase_abc",
             "entitlements": [
                 {
@@ -359,6 +361,36 @@ final class CapivvAPITests: XCTestCase {
     }
 
     // MARK: - API Contract Tests
+
+    /// The server's `SubmitReceiptRequest` requires `idempotency_key` and
+    /// verifies `signed_transaction`; omitting either meant every purchase
+    /// was rejected (issue #34).
+    func testReceiptRequestBodyMatchesServerContract() throws {
+        let body = CapivvAPI.receiptRequestBody(
+            userId: "user_1",
+            signedTransaction: "header.payload.signature",
+            productId: "pro_monthly",
+            transactionId: "2000000123456789",
+            bundleId: "com.example.app"
+        )
+
+        XCTAssertEqual(body["user_id"] as? String, "user_1")
+        XCTAssertEqual(body["platform"] as? String, "ios")
+        XCTAssertEqual(body["signed_transaction"] as? String, "header.payload.signature")
+        XCTAssertEqual(body["product_id"] as? String, "pro_monthly")
+        XCTAssertEqual(body["idempotency_key"] as? String, "2000000123456789")
+        XCTAssertEqual(body["bundle_id"] as? String, "com.example.app")
+        XCTAssertNil(body["receipt_data"])
+        XCTAssertNoThrow(try JSONSerialization.data(withJSONObject: body))
+    }
+
+    func testReceiptRequestBodyOmitsMissingBundleId() {
+        let body = CapivvAPI.receiptRequestBody(
+            userId: "u", signedTransaction: "jws", productId: "p",
+            transactionId: "1", bundleId: nil
+        )
+        XCTAssertNil(body["bundle_id"])
+    }
     //
     // These tests verify that the SDK API methods match the backend contract.
     // They would catch bugs like missing required parameters.

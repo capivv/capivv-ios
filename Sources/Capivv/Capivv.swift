@@ -29,6 +29,11 @@ public final class Capivv: ObservableObject {
     /// Current user's entitlements
     @Published public private(set) var entitlements: [Entitlement] = []
 
+    /// The most recent failure to record a StoreKit transaction with Capivv,
+    /// or `nil` if the last attempt succeeded. A failed transaction is left
+    /// unfinished, so StoreKit redelivers it and the SDK retries.
+    @Published public private(set) var lastPurchaseSyncError: String?
+
     /// Whether the SDK is configured
     public var isConfigured: Bool { configuration != nil }
 
@@ -91,7 +96,18 @@ public final class Capivv: ObservableObject {
 
         Logger.info("User logged in")
 
+        // Backfill: subscribers who bought before this SDK version (or while
+        // the backend was unreachable) are only known to StoreKit. Send their
+        // current entitlements so Capivv sees them.
+        if let store = store {
+            Task { await store.syncCurrentEntitlements() }
+        }
+
         return userInfo
+    }
+
+    func recordPurchaseSync(error: String?) {
+        lastPurchaseSyncError = error
     }
 
     /// Log out the current user

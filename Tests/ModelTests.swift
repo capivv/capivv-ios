@@ -455,7 +455,7 @@ final class ModelTests: XCTestCase {
         let config = CapivvConfiguration(apiKey: "test_key")
 
         XCTAssertEqual(config.apiKey, "test_key")
-        XCTAssertEqual(config.baseURL.absoluteString, "https://api.capivv.com/v1")
+        XCTAssertEqual(config.baseURL.absoluteString, "https://app.capivv.com/v1")
         XCTAssertEqual(config.timeoutInterval, 30)
         XCTAssertFalse(config.debugLoggingEnabled)
     }

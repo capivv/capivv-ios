@@ -52,24 +52,50 @@ actor CapivvAPI {
     // MARK: - Receipt Validation
 
     /// Validate a receipt with the backend
-    func validateReceipt(
+    /// Submit a StoreKit 2 transaction to Capivv.
+    ///
+    /// The server verifies `signedTransaction` (the transaction's JWS) against
+    /// Apple's root CA, so no app receipt or shared secret is required.
+    func submitTransaction(
         userId: String,
-        receiptData: String,
+        signedTransaction: String,
         productId: String,
         transactionId: String,
-        originalTransactionId: String
+        bundleId: String?
     ) async throws -> ReceiptValidationResult {
-        let body: [String: Any] = [
-            "user_id": userId,
-            "platform": "ios",
-            "receipt_data": receiptData,
-            "product_id": productId,
-            "transaction_id": transactionId,
-            "original_transaction_id": originalTransactionId
-        ]
-
+        let body = Self.receiptRequestBody(
+            userId: userId,
+            signedTransaction: signedTransaction,
+            productId: productId,
+            transactionId: transactionId,
+            bundleId: bundleId
+        )
         let response: ReceiptValidationResponse = try await post(path: "/sdk/receipts", body: body)
         return ReceiptValidationResult(from: response)
+    }
+
+    /// Request body for `POST /sdk/receipts`. Must match the server's
+    /// `SubmitReceiptRequest` — `idempotency_key` is required there.
+    static func receiptRequestBody(
+        userId: String,
+        signedTransaction: String,
+        productId: String,
+        transactionId: String,
+        bundleId: String?
+    ) -> [String: Any] {
+        var body: [String: Any] = [
+            "user_id": userId,
+            "platform": "ios",
+            "signed_transaction": signedTransaction,
+            "product_id": productId,
+            // The transaction ID is stable across redeliveries, so retries
+            // of the same transaction collapse server-side.
+            "idempotency_key": transactionId
+        ]
+        if let bundleId = bundleId {
+            body["bundle_id"] = bundleId
+        }
+        return body
     }
 
     // MARK: - Paywalls
@@ -309,26 +335,30 @@ struct OfferingsResponse: Codable {
 }
 
 struct ReceiptValidationResponse: Codable {
-    let success: Bool
+    let status: String
+    let message: String?
     let purchaseId: String?
     let entitlements: [EntitlementResponse]?
-    let message: String?
+    let expiresAt: Date?
 
     enum CodingKeys: String, CodingKey {
-        case success
+        case status
+        case message
         case purchaseId = "purchase_id"
         case entitlements
-        case message
+        case expiresAt = "expires_at"
     }
 }
 
 struct ReceiptValidationResult {
     let success: Bool
+    let message: String?
     let purchaseId: String?
     let entitlements: [Entitlement]
 
     init(from response: ReceiptValidationResponse) {
-        self.success = response.success
+        self.success = response.status == "success"
+        self.message = response.message
         self.purchaseId = response.purchaseId
         self.entitlements = response.entitlements?.map { Entitlement(from: $0) } ?? []
     }
